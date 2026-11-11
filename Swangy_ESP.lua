@@ -1,19 +1,19 @@
 --[[
-    SWANGY ESP  v2.0  (Matcha)
+    SWANGY ESP  v2.1  (YuB-X)
     Generators / Windows / Pallets / Bear Traps
 
     HOW TO RUN
-      Option A: paste this whole file into Matcha and execute it.
-      Option B: save it as  swangy_esp.lua  in your Matcha workspace folder, then run:
+      Option A: paste this whole file into the YuB-X editor and execute it.
+      Option B: save it as  swangy_esp.lua  in your YuB-X workspace, then run:
                     loadstring(readfile("swangy_esp.lua"))()
 
     - Re-running replaces the old copy automatically (no duplicate drawings).
-    - Settings (toggles, ranges, fill, FPS cap) are remembered in swangy_esp.cfg.
-    - Menu tab: "Swangy ESP".
+    - Settings (toggles, ranges, fill, FPS cap) are remembered in swangy_esp.cfg when YuB-X file I/O is available.
+    - Matcha-only menu removed; use the _G.__SWANGY controls listed below.
     - Console control:  _G.__SWANGY.gen.Toggle()   _G.__SWANGY.SetRange(500)   _G.__SWANGY.unload()
 ]]
 
-local VERSION = "2.0"
+local VERSION = "2.1-YuB-X"
 local G = _G
 
 if G.__SWANGY and type(G.__SWANGY.unload) == "function" then pcall(G.__SWANGY.unload) end
@@ -63,11 +63,6 @@ local COL = {
     trapArmed = rgb(80, 255, 120), trapSprung = rgb(255, 60, 60),
 }
 
-local FONT
-do
-    local f = Drawing.Fonts
-    if f then FONT = f.SystemBold or f.System end
-end
 
 -- ============================================================
 -- shared state
@@ -199,7 +194,6 @@ local function newText(size)
     t.Outline = true
     t.Center = true
     t.Visible = false
-    if FONT then pcall(function() t.Font = FONT end) end
     return t
 end
 
@@ -1339,9 +1333,7 @@ saveConfig = function()
 end
 
 local function loadConfig()
-    if type(readfile) ~= "function" or type(isfile) ~= "function" then return end
-    local okf, exists = pcall(isfile, CFG_FILE)
-    if not okf or not exists then return end
+    if type(readfile) ~= "function" then return end
     local ok, text = pcall(readfile, CFG_FILE)
     if not ok or type(text) ~= "string" then return end
     local byName = {}
@@ -1456,72 +1448,23 @@ end
 API.stop = API.unload
 
 -- ============================================================
--- Matcha menu
+-- YuB-X controls
 -- ============================================================
-local function menuToggle(sec, id, label, tbl, key)
-    sec:Toggle(id, label, tbl[key], function(v)
-        tbl[key] = v and true or false
-        S.dirty = true
-    end)
-end
-
-function API.menu(tab)
-    local main = tab:Section("ESP", "Left")
-    menuToggle(main, "swangy_master", "ESP Enabled", CFG, "master")
-    for _, cat in ipairs(ORDER) do
-        main:Toggle("swangy_" .. cat.key, cat.name .. " ESP", cat.cfg.on, function(v) setOn(cat, v) end)
-    end
-    menuToggle(main, "swangy_names", "Names / Labels", CFG, "names")
-    main:Button("Unload ESP", function() API.unload() end)
-
-    local disp = tab:Section("Display", "Right")
-    for _, cat in ipairs(ORDER) do
-        menuToggle(disp, "swangy_" .. cat.key .. "_fill", cat.name .. " Fill", cat.cfg, "fill")
-    end
-
-    local rng = tab:Section("Ranges", "Right")
-    for _, cat in ipairs(ORDER) do
-        rng:SliderInt("swangy_" .. cat.key .. "_range", cat.name .. " Range", 50, 1000, cat.cfg.range, function(v)
-            cat.cfg.range = v
-            S.dirty = true
-        end)
-    end
-
-    local perf = tab:Section("Performance", "Left")
-    perf:SliderInt("swangy_fps", "Max Draw FPS (0 = uncapped)", 0, 240, CFG.drawHz, function(v)
-        CFG.drawHz = v
-        S.dirty = true
-    end)
-    perf:Text(S.perfLine ~= "" and S.perfLine or "...")
-    perf:Text(S.countLine ~= "" and S.countLine or "...")
-
-    -- make the widgets match the loaded settings once (in case Matcha keeps its own values)
-    S.menuFrames = S.menuFrames + 1
-    if S.menuFrames == 3 and UI and type(UI.SetValue) == "function" then
-        pcall(UI.SetValue, "swangy_master", CFG.master)
-        pcall(UI.SetValue, "swangy_names", CFG.names)
-        pcall(UI.SetValue, "swangy_fps", CFG.drawHz)
-        for _, cat in ipairs(ORDER) do
-            pcall(UI.SetValue, "swangy_" .. cat.key, cat.cfg.on)
-            pcall(UI.SetValue, "swangy_" .. cat.key .. "_fill", cat.cfg.fill)
-            pcall(UI.SetValue, "swangy_" .. cat.key .. "_range", cat.cfg.range)
-        end
-    end
-end
-
--- one permanent tab; it always renders whichever copy of the script is currently loaded
-if UI and type(UI.AddTab) == "function" and not G.__SWANGY_TAB then
-    G.__SWANGY_TAB = true
-    UI.AddTab("Swangy ESP", function(tab)
-        local A = G.__SWANGY
-        if A and A.menu then
-            A.menu(tab)
-        else
-            tab:Section("Swangy ESP", "Left"):Text("ESP is unloaded - run the script again")
-        end
-    end)
-end
-
+-- YuB-X's documented runtime APIs cover Drawing, WorldToScreen,
+-- RunService, and file I/O. The original Matcha-only UI.AddTab /
+-- Section / Toggle / SliderInt menu has been removed.
+--
+-- After running, use the YuB-X console to control the script:
+--   _G.__SWANGY.gen.Toggle()
+--   _G.__SWANGY.win.Toggle()
+--   _G.__SWANGY.pal.Toggle()
+--   _G.__SWANGY.trap.Toggle()
+--   _G.__SWANGY.SetNames(false)
+--   _G.__SWANGY.SetRange(500)
+--   _G.__SWANGY.SetFill(false, false, false, false)
+--   _G.__SWANGY.Perf()
+--   _G.__SWANGY.unload()
+--
 -- ============================================================
 -- boot
 -- ============================================================
@@ -1547,9 +1490,5 @@ else
 end
 
 spawn(worker)
-
-if type(notify) == "function" then
-    notify("generator / window / pallet / bear trap esp", "Swangy ESP", 4)
-end
 
 return API
